@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --svg-wave-bg: #c5d9ec;
+  --svg-wave-fg: #5a9ad0;
+  --svg-dot-center: #fff;
+}
+
+.dark {
+  color-scheme: dark;
+  --color-background: #0b1a2e;
+  --color-foreground: #e0ecf5;
+  --color-kenpath-50: #0f2640;
+  --color-kenpath-100: #152d4a;
+  --color-kenpath-200: #1a3a5c;
+  --color-kenpath-300: #2a4a6e;
+  --color-kenpath-400: #3a6a8a;
+  --color-kenpath-500: #4a91c2;
+  --color-kenpath-600: #5da8d6;
+  --color-kenpath-700: #7dbfe6;
+  --color-kenpath-800: #b0d4f0;
+  --color-kenpath-900: #e0ecf5;
+  --color-kenpath-dark: #e0ecf5;
+  --color-kenpath-medium: #a0c4e0;
+  --color-kenpath-light: #1a3a5c;
+  --color-kenpath-muted: #7dafd4;
+  --svg-wave-bg: #2a4a6e;
+  --svg-wave-fg: #4a91c2;
+  --svg-dot-center: #0b1a2e;
+}
+
+@theme inline {
+  --color-page: var(--color-background);
+  --color-content: var(--color-foreground);
+  --color-surface: var(--color-kenpath-50);
+  --color-outline: var(--color-kenpath-300);
+  --color-brand: var(--color-kenpath-700);
+  --color-secondary: var(--color-kenpath-medium);
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: system-ui, sans-serif;
+}
