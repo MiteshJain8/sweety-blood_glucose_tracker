@@ -5,11 +5,15 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "db:setup": "node scripts/setup-db.js"
+    "db:setup": "node scripts/setup-db.js",
+    "test": "node --test"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^18.0.10",
     "express": "^5.3.0",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1"
   }
 }

@@ -1,8 +1,10 @@
 import express from 'express';
+import { auth } from './auth.js';
 import { pool } from './db.js';
 
 export const app = express();
 app.use(express.json());
+app.use('/api/auth', auth);
 
 app.get('/api/health', async (req, res, next) => {
   try {
