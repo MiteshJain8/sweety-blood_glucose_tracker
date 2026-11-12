@@ -55,7 +55,7 @@ This stops PostgreSQL while preserving the data volume.
 
 ## Current status
 
-Foundation, authentication and reading management are implemented. Reports and demo seed remain to be implemented. Authentication integration tests require a separate running PostgreSQL database.
+Foundation, authentication and reading management are implemented. Reports are implemented; demo seed and submission packaging remain. Authentication integration tests require a separate running PostgreSQL database.
 
 ## Notes
 
@@ -78,10 +78,17 @@ docker compose exec db createdb -U sweety sweety_test
 npm test
 ```
 
-The suite creates tables in that database and deletes only its generated test user. Never use your application database as the test database. Live database and browser authentication verification remain pending while Docker is unavailable.
+The suite creates tables in that database and deletes only its generated test user. Never use your application database as the test database. Database authentication integration checks passed against PostgreSQL. Browser interaction checks remain pending because the browser automation host is unavailable.
 
 ## Reading management
 
 Authenticated endpoints: GET /api/readings?date=YYYY-MM-DD, POST /api/readings, PUT /api/readings/:id and DELETE /api/readings/:id. POST and PUT accept date, slot and a numeric integer value. Slots are morning, after_breakfast, after_lunch and after_dinner. Values must be 40–600 mg/dl. Dates must be real calendar dates no later than today in Asia/Kolkata. All SQL reads and writes are scoped to the authenticated user; inaccessible IDs return 404. Four fixed slots and their unique constraint enforce the daily maximum even during concurrent writes.
 
-The dashboard supports date selection, adding, editing and confirmed deletion. Failed saves preserve form values. Run validation tests without PostgreSQL with `node --test server/test/reading-validation.test.js`; `npm test` additionally requires the separate PostgreSQL test database. Live CRUD integration and browser checks remain pending while Docker is unavailable.
+The dashboard supports date selection, adding, editing and confirmed deletion. Failed saves preserve form values. Run validation tests without PostgreSQL with `node --test server/test/reading-validation.test.js`; `npm test` additionally requires the separate PostgreSQL test database. CRUD and ownership integration checks passed against PostgreSQL. Browser interaction checks remain pending because the browser automation host is unavailable.
+
+
+## Reports
+
+GET /api/reports?date=YYYY-MM-DD requires authentication. It returns daily, monthToDate and monthly objects containing start, end, count, minimum, maximum and average. Monthly means the complete month before the selected date's month. All ranges include both endpoints. Empty periods return count 0 and null statistics. SQL rounds averages to one decimal; the client displays a trailing decimal digit. The daily reading list shows each slot and value above the reports. Report cards refresh on date changes and successful reading mutations.
+
+Run standalone calendar and validation checks with `node --test server/test/reading-validation.test.js server/test/report-ranges.test.js`. The database integration suite also asserts report rounding, date boundaries, empty periods and ownership isolation, and pass against the separate PostgreSQL test database.

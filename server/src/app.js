@@ -1,4 +1,5 @@
 import express from 'express';
+import { reports } from './reports.js';
 import { readings } from './readings.js';
 import { auth } from './auth.js';
 import { pool } from './db.js';
@@ -7,6 +8,7 @@ export const app = express();
 app.use(express.json());
 app.use('/api/auth', auth);
 app.use('/api/readings', readings);
+app.use('/api/reports', reports);
 
 app.get('/api/health', async (req, res, next) => {
   try {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Reports from './Reports.jsx';
 const slots = { morning: 'Morning (fasting)', after_breakfast: 'After breakfast', after_lunch: 'After lunch', after_dinner: 'After dinner' };
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 async function api(path, method = 'GET', body) {
@@ -52,5 +53,6 @@ export default function Readings() {
     </form>
     {loading ? <p role="status">Loading readings…</p> : rows.length === 0 ? <p>No readings for this date yet.</p> : <ul className="space-y-3">{rows.map(row => <li key={row.id} className="rounded border border-outline p-4"><p>{slots[row.slot]}: <strong>{row.value} mg/dl</strong></p><div className="mt-2 flex gap-5"><button disabled={busy} className="text-brand underline" onClick={() => { setEditing(row.id); setForm({ slot: row.slot, value: String(row.value) }); setError(''); }}>Edit</button><button disabled={busy} className="text-brand underline" onClick={() => remove(row)}>Delete</button></div></li>)}</ul>}
     <p className="text-secondary">{rows.length} of 4 readings recorded</p>
+    <Reports date={date} reload={reload} />
   </section>;
 }

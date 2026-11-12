@@ -52,10 +52,28 @@ test('registration, session, login validation and logout', async () => {
     const listed = await (await reading('?date=2024-02-29')).json();
     assert.equal(listed.readings.length, 1);
     assert.equal(listed.readings[0].value, 600);
+    async function report(date, token = cookie) {
+      return fetch(base.replace('/auth', '/reports') + '?date=' + date, { headers: { Cookie: token } });
+    }
+    assert.equal((await report('2024-02-29', '')).status, 401);
+    assert.equal((await report('2023-02-29')).status, 400);
+    for (const [date, value] of [['2024-02-01', 100], ['2024-02-28', 102], ['2024-01-01', 40], ['2024-01-31', 600], ['2024-03-01', 200]]) {
+      await pool.query("INSERT INTO readings(user_id,date,slot,value) VALUES($1,$2,'morning',$3)", [user.id, date, value]);
+    }
+    const summary = await (await report('2024-02-29')).json();
+    assert.deepEqual(summary.daily, { start: '2024-02-29', end: '2024-02-29', count: 1, minimum: 600, maximum: 600, average: 600 });
+    assert.deepEqual(summary.monthToDate, { start: '2024-02-01', end: '2024-02-29', count: 3, minimum: 100, maximum: 600, average: 267.3 });
+    assert.deepEqual(summary.monthly, { start: '2024-01-01', end: '2024-01-31', count: 2, minimum: 40, maximum: 600, average: 320 });
+    const empty = await (await report('2022-01-01')).json();
+    assert.equal(empty.daily.count, 0);
+    assert.equal(empty.daily.average, null);
+    assert.equal(empty.daily.minimum, null);
+    assert.equal(empty.daily.maximum, null);
     const outsider = await pool.query("INSERT INTO users (name,email,password_hash) VALUES ('Other',$1,'unused') RETURNING id", ['other-' + email]);
     try {
       const jwt = (await import('jsonwebtoken')).default;
       const otherCookie = 'session=' + jwt.sign({}, process.env.JWT_SECRET, { subject: String(outsider.rows[0].id), expiresIn: '1h' });
+      assert.equal((await (await report('2024-02-29', otherCookie)).json()).monthToDate.count, 0);
       assert.equal((await reading('/' + saved.id, 'PUT', sample, otherCookie)).status, 404);
       assert.equal((await reading('/' + saved.id, 'DELETE', null, otherCookie)).status, 404);
       assert.deepEqual((await (await reading('?date=2024-02-29', 'GET', null, otherCookie)).json()).readings, []);
