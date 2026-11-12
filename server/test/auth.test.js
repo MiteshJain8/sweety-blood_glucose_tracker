@@ -37,6 +37,33 @@ test('registration, session, login validation and logout', async () => {
     assert.equal((await call('/register', { name: 'Other', email, password: 'password123' })).status, 409);
     assert.equal((await call('/login', { email, password: 'wrong' })).status, 401);
     assert.equal((await call('/login', { email, password: 'password123' })).status, 200);
+    async function reading(path, method = 'GET', body, token = cookie) {
+      return fetch(base.replace('/auth', '/readings') + path, { method, headers: { Cookie: token, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    }
+    const sample = { date: '2024-02-29', slot: 'morning', value: 40 };
+    assert.equal((await reading('', 'POST', sample, '')).status, 401);
+    const added = await reading('', 'POST', sample);
+    assert.equal(added.status, 201);
+    const { reading: saved } = await added.json();
+    assert.equal((await reading('', 'POST', sample)).status, 409);
+    assert.equal((await reading('/' + saved.id, 'PUT', { ...sample, value: 600 })).status, 200);
+    for (const value of [39, 601, 40.5, '', null]) assert.equal((await reading('', 'POST', { ...sample, value })).status, 400);
+    assert.equal((await reading('', 'POST', { ...sample, date: '2099-01-01' })).status, 400);
+    const listed = await (await reading('?date=2024-02-29')).json();
+    assert.equal(listed.readings.length, 1);
+    assert.equal(listed.readings[0].value, 600);
+    const outsider = await pool.query("INSERT INTO users (name,email,password_hash) VALUES ('Other',$1,'unused') RETURNING id", ['other-' + email]);
+    try {
+      const jwt = (await import('jsonwebtoken')).default;
+      const otherCookie = 'session=' + jwt.sign({}, process.env.JWT_SECRET, { subject: String(outsider.rows[0].id), expiresIn: '1h' });
+      assert.equal((await reading('/' + saved.id, 'PUT', sample, otherCookie)).status, 404);
+      assert.equal((await reading('/' + saved.id, 'DELETE', null, otherCookie)).status, 404);
+      assert.deepEqual((await (await reading('?date=2024-02-29', 'GET', null, otherCookie)).json()).readings, []);
+    } finally { await pool.query('DELETE FROM users WHERE id=$1', [outsider.rows[0].id]); }
+    for (const slot of ['after_breakfast', 'after_lunch', 'after_dinner']) assert.equal((await reading('', 'POST', { ...sample, slot })).status, 201);
+    assert.equal((await reading('', 'POST', sample)).status, 409);
+    assert.equal((await reading('/' + saved.id, 'DELETE')).status, 200);
+    assert.equal((await reading('/' + saved.id, 'DELETE')).status, 404);
     const logout = await call('/logout', {}, cookie);
     assert.match(logout.headers.get('set-cookie'), /Expires=Thu, 01 Jan 1970/i);
     const blocked = await fetch(base + '/logout', { method: 'POST', headers: { Origin: 'https://other.example' } });

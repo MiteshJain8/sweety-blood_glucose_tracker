@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Readings from './Readings.jsx';
 
 async function request(path, body) {
   const response = await fetch(`/api/auth/${path}`, {
@@ -42,7 +43,7 @@ export default function App() {
       {error && <p role="alert" className="mb-4 rounded border border-brand p-3">{error}</p>}
       {loading ? <p role="status">Loading your session…</p> : user ? <section className="rounded-2xl border border-outline bg-surface p-6">
         <h1 className="text-xl font-semibold">Welcome, {user.name}</h1>
-        <p className="mt-3 text-secondary">You are logged in. Reading management is coming in the next milestone.</p>
+        <Readings />
         <button disabled={busy} onClick={logout} className="mt-6 rounded bg-brand px-4 py-2 text-page disabled:opacity-50">Log out</button>
       </section> : <section className="rounded-2xl border border-outline bg-surface p-6">
         <h1 className="mb-5 text-xl font-semibold">{register ? 'Create an account' : 'Log in'}</h1>

@@ -55,7 +55,7 @@ This stops PostgreSQL while preserving the data volume.
 
 ## Current status
 
-Foundation and authentication are implemented. Reading management, reports and demo seed remain to be implemented. Authentication integration tests require a separate running PostgreSQL database.
+Foundation, authentication and reading management are implemented. Reports and demo seed remain to be implemented. Authentication integration tests require a separate running PostgreSQL database.
 
 ## Notes
 
@@ -79,3 +79,9 @@ npm test
 ```
 
 The suite creates tables in that database and deletes only its generated test user. Never use your application database as the test database. Live database and browser authentication verification remain pending while Docker is unavailable.
+
+## Reading management
+
+Authenticated endpoints: GET /api/readings?date=YYYY-MM-DD, POST /api/readings, PUT /api/readings/:id and DELETE /api/readings/:id. POST and PUT accept date, slot and a numeric integer value. Slots are morning, after_breakfast, after_lunch and after_dinner. Values must be 40–600 mg/dl. Dates must be real calendar dates no later than today in Asia/Kolkata. All SQL reads and writes are scoped to the authenticated user; inaccessible IDs return 404. Four fixed slots and their unique constraint enforce the daily maximum even during concurrent writes.
+
+The dashboard supports date selection, adding, editing and confirmed deletion. Failed saves preserve form values. Run validation tests without PostgreSQL with `node --test server/test/reading-validation.test.js`; `npm test` additionally requires the separate PostgreSQL test database. Live CRUD integration and browser checks remain pending while Docker is unavailable.
