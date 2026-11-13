@@ -1,27 +1,45 @@
 # Sweety
 
-A blood glucose tracker built with React, Tailwind CSS, Express and PostgreSQL.
+A small blood glucose tracker built with React, Tailwind CSS, Express and PostgreSQL.
 
-## Requirements
+## Requirements and installation
 
 - Node.js 22.12 or later and npm
-- Docker with Docker Compose
+- Docker with Docker Compose, with the Docker engine running
 
-## Local setup
-
-Run these commands from the repository root:
+From the repository root:
 
 ```sh
-npm install
+npm ci
 cp .env.example .env
 cp server/.env.example server/.env
-docker compose up -d --wait
-npm run db:setup
 ```
 
-The example database credentials are for local development. If you change the root `.env`, update `DATABASE_URL` in `server/.env` to match. Database credentials are applied when Docker creates the database volume for the first time.
+Generate a secret and paste the output into JWT_SECRET in server/.env:
 
-Run the API and client in separate terminals:
+```sh
+node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+```
+
+The example credentials are for local development only. If you change POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB or POSTGRES_PORT in the root .env, update server/.env's database URLs to match. Database credentials are initialized only when the Docker volume is first created.
+
+## Database and demo account
+
+```sh
+docker compose up -d --wait
+npm run db:setup
+npm run db:seed
+```
+
+Demo login: **demo@sweety.example** / **SweetyDemo123!**
+
+The seed creates sample readings for today, the current month and the previous month, using Asia/Kolkata dates. It can be rerun: matching demo slots are updated rather than duplicated, and unrelated users are preserved. It resets the demo password to the documented value. Use it only in a development/demo database. It does not delete older demo readings.
+
+The schema script creates missing tables; it does not migrate existing table definitions. PostgreSQL persists data in a named Docker volume. `docker compose stop` preserves it; `docker compose down -v` deletes it.
+
+## Run
+
+In separate terminals:
 
 ```sh
 npm run dev:server
@@ -31,64 +49,61 @@ npm run dev:server
 npm run dev:client
 ```
 
-Open the URL printed by Vite (normally http://localhost:5173). Vite proxies `/api` requests to http://localhost:3000. Keep the API on port 3000 or update the proxy in `client/vite.config.js`.
+Open http://localhost:5173. Keep the API on port 3000, or update the proxy in client/vite.config.js. APP_ORIGIN must match the browser origin. Vite forwards /api requests to Express. http://localhost:3000/api/health checks database connectivity.
 
-Check API and database connectivity at http://localhost:3000/api/health.
+## Tests and build
 
-## Build
-
-```sh
-npm run build
-```
-
-The frontend output is written to `client/dist`. The API can also run with `npm start --workspace server`.
-
-## Database
-
-`database/schema.sql` creates users and readings. Run `npm run db:setup` to apply it; it can be rerun without deleting data. Each user can have one reading per date and slot, with an integer value from 40 to 600 mg/dl.
-
-```sh
-docker compose stop
-```
-
-This stops PostgreSQL while preserving the data volume.
-
-## Current status
-
-Foundation, authentication and reading management are implemented. Reports are implemented; demo seed and submission packaging remain. Authentication integration tests require a separate running PostgreSQL database.
-
-## Notes
-
-- The application will use Asia/Kolkata to determine today's date.
-- The previous-month report is relative to the selected date, rather than the current date.
-- PostgreSQL runs in Docker; the API and frontend run locally.
-
-## Authentication
-
-Registration and login issue a one-day signed JWT in an HTTP-only, SameSite=Strict cookie. Set a random JWT_SECRET of at least 32 characters in server/.env. APP_ORIGIN must match the browser origin (normally http://localhost:5173). Production cookies require HTTPS through NODE_ENV=production. Registration normalizes email and stores bcrypt hashes with cost 12; passwords must be at least eight characters and at most 72 UTF-8 bytes.
-
-Endpoints: POST /api/auth/register, POST /api/auth/login, POST /api/auth/logout and GET /api/auth/me. Logout clears the browser cookie; a copied token remains usable until expiry. Rate limiting, password recovery and server-side token revocation are future improvements. Reading authorization will be added with reading endpoints.
-
-## Authentication integration tests
-
-Create a separate database, then set TEST_DATABASE_URL in server/.env:
+Create a separate test database once:
 
 ```sh
 docker compose exec db createdb -U sweety sweety_test
-npm test
 ```
 
-The suite creates tables in that database and deletes only its generated test user. Never use your application database as the test database. Database authentication integration checks passed against PostgreSQL. Browser interaction checks remain pending because the browser automation host is unavailable.
+Set TEST_DATABASE_URL in server/.env to that database (the example already specifies sweety_test), then run:
 
-## Reading management
+```sh
+npm test
+npm run build
+```
 
-Authenticated endpoints: GET /api/readings?date=YYYY-MM-DD, POST /api/readings, PUT /api/readings/:id and DELETE /api/readings/:id. POST and PUT accept date, slot and a numeric integer value. Slots are morning, after_breakfast, after_lunch and after_dinner. Values must be 40–600 mg/dl. Dates must be real calendar dates no later than today in Asia/Kolkata. All SQL reads and writes are scoped to the authenticated user; inaccessible IDs return 404. Four fixed slots and their unique constraint enforce the daily maximum even during concurrent writes.
+Tests cover authentication, cookies, password storage, CRUD validation, user isolation, report calculations, empty periods and calendar boundaries. The database suite creates its tables and removes its generated users. Never point TEST_DATABASE_URL at an application database. If sweety_test already exists, skip the createdb command.
 
-The dashboard supports date selection, adding, editing and confirmed deletion. Failed saves preserve form values. Run validation tests without PostgreSQL with `node --test server/test/reading-validation.test.js`; `npm test` additionally requires the separate PostgreSQL test database. CRUD and ownership integration checks passed against PostgreSQL. Browser interaction checks remain pending because the browser automation host is unavailable.
+Without PostgreSQL, run only the standalone checks:
 
+```sh
+node --test server/test/reading-validation.test.js server/test/report-ranges.test.js
+```
 
-## Reports
+The build produces client/dist. `npm start --workspace server` starts the API without watch mode. Production static-file hosting is not configured; the Vite proxy is development-only.
 
-GET /api/reports?date=YYYY-MM-DD requires authentication. It returns daily, monthToDate and monthly objects containing start, end, count, minimum, maximum and average. Monthly means the complete month before the selected date's month. All ranges include both endpoints. Empty periods return count 0 and null statistics. SQL rounds averages to one decimal; the client displays a trailing decimal digit. The daily reading list shows each slot and value above the reports. Report cards refresh on date changes and successful reading mutations.
+## Features and API
 
-Run standalone calendar and validation checks with `node --test server/test/reading-validation.test.js server/test/report-ranges.test.js`. The database integration suite also asserts report rounding, date boundaries, empty periods and ownership isolation, and pass against the separate PostgreSQL test database.
+- Registration, login, logout and session restoration.
+- Add, view, edit and delete your own readings, with up to four unique slots per day.
+- Required integer values of 40–600 mg/dl, real calendar dates and no future dates.
+- Daily, month-to-date and complete previous-month reports with count, minimum, maximum and average rounded to one decimal. Daily readings list their slots.
+- Friendly empty states and errors; failed saves retain entered values.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| POST | /api/auth/register | name, email, password |
+| POST | /api/auth/login | email, password |
+| POST | /api/auth/logout | Clear session cookie |
+| GET | /api/auth/me | Current user |
+| GET | /api/readings?date=YYYY-MM-DD | Selected day's readings |
+| POST | /api/readings | Create reading |
+| PUT | /api/readings/:id | Update reading |
+| DELETE | /api/readings/:id | Delete reading |
+| GET | /api/reports?date=YYYY-MM-DD | Three report summaries |
+
+Reading bodies contain date, slot and numeric value. Slots: morning, after_breakfast, after_lunch, after_dinner. Reports return daily, monthToDate and monthly objects with start, end, count, minimum, maximum and average. Empty summaries contain count 0 and null statistics.
+
+## Notes
+
+- Today uses Asia/Kolkata. The monthly report is the complete month before the selected date's month. All report boundaries are inclusive; no readings are invented for missing slots.
+- The four fixed slots and UNIQUE(user_id,date,slot) constraint enforce the daily maximum, including concurrent inserts. User IDs come from verified authentication, never the request body.
+- Passwords use bcrypt cost 12. Inputs must be at least eight characters and at most 72 UTF-8 bytes. Emails are trimmed and lowercased.
+- Sessions use one-day HS256 JWTs in HTTP-only SameSite=Strict cookies. Secure cookies require HTTPS with NODE_ENV=production. Logout clears the cookie but does not revoke a copied token before expiry.
+- PostgreSQL runs in Docker; Express and Vite run locally. No ORM, React framework, Redis, charts or background jobs are included.
+- The palette uses the Kenpath colors supplied for this assignment. Dark mode is the default.
+- With more time: rate limiting, account recovery, token revocation, ordered migrations, deployment configuration and more browser automation. Login timing for missing accounts could also be made more uniform.

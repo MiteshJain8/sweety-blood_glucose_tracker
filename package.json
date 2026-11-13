@@ -10,7 +10,8 @@
     "dev:server": "npm run dev --workspace server",
     "build": "npm run build --workspace client",
     "db:setup": "npm run db:setup --workspace server",
-    "test": "npm test --workspace server"
+    "test": "npm test --workspace server",
+    "db:seed": "npm run db:seed --workspace server"
   },
   "engines": {
     "node": ">=22.12.0"
